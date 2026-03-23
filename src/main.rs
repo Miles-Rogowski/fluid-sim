@@ -16,11 +16,14 @@ const NUMBER_OF_PARTICLES: u32 = 500;
 const ROW_SIZE: u32 = 25;
 const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
 pub const PARTICLE_SIZE: f32 = 5.0; 
+pub const PARTICLE_MASS: f32 = 1.0;
 
 
 
 #[derive(Component)]
-pub struct FluidParticle;
+pub struct FluidParticle{
+    pub smoothing_radius: f32
+}
 
 #[derive(Component)]
 pub struct Velocity{
@@ -46,16 +49,21 @@ fn setup(
             Mesh2d(meshes.add(Circle::new(PARTICLE_SIZE))),
             MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(PARTICLE_COLOR)))),
             Transform::from_xyz(position.x, position.y, position.z),
-            FluidParticle,
+            FluidParticle{ smoothing_radius: 5.3 },
             Velocity{ x: 0.0, y: 0.0 },
         ));
     }
+    commands.spawn((
+            Mesh2d(meshes.add(Circle::new(PARTICLE_SIZE))),
+            MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(LinearRgba::rgb(1.0, 0.0, 0.0))))),
+            Transform::from_xyz(0.0, 0.0, 5.0),
+        ));
 }
 
 fn find_particle_position_in_grid(particle_number: u32) -> Vec3{
     let mut transform = Vec3::ZERO;
-    transform.x = (particle_number % ROW_SIZE) as f32 * (PARTICLE_SIZE * 2.0) - (ROW_SIZE as f32 / 2.0 * PARTICLE_SIZE);
-    transform.y = (particle_number / ROW_SIZE) as f32 * PARTICLE_SIZE * 2.0;
+    transform.x = ((particle_number % ROW_SIZE) as f32 * PARTICLE_SIZE * 2.0) - (ROW_SIZE as f32 * PARTICLE_SIZE);
+    transform.y = ((particle_number / ROW_SIZE) as f32 * PARTICLE_SIZE * 2.0) - (NUMBER_OF_PARTICLES / ROW_SIZE) as f32 * PARTICLE_SIZE;
     transform.z = 1.0;
     return transform;
 }
