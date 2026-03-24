@@ -12,11 +12,11 @@ fn main() {
     .run();
 }
 
-const NUMBER_OF_PARTICLES: u32 = 500;
+const NUMBER_OF_PARTICLES: u32 = 1000;
 const ROW_SIZE: u32 = 25;
 const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
 pub const PARTICLE_SIZE: f32 = 5.0; 
-pub const PARTICLE_MASS: f32 = 1.0;
+pub const PARTICLE_MASS: f32 = 5.0;
 
 
 
@@ -49,7 +49,7 @@ fn setup(
             Mesh2d(meshes.add(Circle::new(PARTICLE_SIZE))),
             MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(PARTICLE_COLOR)))),
             Transform::from_xyz(position.x, position.y, position.z),
-            FluidParticle{ smoothing_radius: 5.3 },
+            FluidParticle{ smoothing_radius: 50.0 },
             Velocity{ x: 0.0, y: 0.0 },
         ));
     }
