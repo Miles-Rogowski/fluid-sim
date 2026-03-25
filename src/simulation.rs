@@ -12,15 +12,20 @@ impl Plugin for SimulationPlugin{
     }
 }
 
-const TARGET_DENSITY: f32 = 2.0;
+const TARGET_DENSITY: f32 = 3.0;
 const GRAVITY_STRENGTH: f32 = 0.098;
-const DENSITY_WEIGHT: f32 = 18400.0;
-const PRESSURE_MULTIPLIER: f32 = 5.0;
+const PRESSURE_MULTIPLIER: f32 = 3.0;
 
 fn calculate_velocities(
     mut particles: Query<(&mut Transform, &mut Velocity, &FluidParticle)>,
-    //window: Query<&mut Window, With<PrimaryWindow>>,
+    window: Query<&mut Window, With<PrimaryWindow>>,
 ){
+
+    let window = window.single().unwrap();
+
+    let width = window.width();
+    let height = window.height();
+
     //position, smoothing radius
     let mut vec: Vec<(Vec2, f32)> = vec![];
     for (transform, _, fluid_particle) in particles.iter_mut(){
@@ -33,7 +38,7 @@ fn calculate_velocities(
         velocity.y -= GRAVITY_STRENGTH;
 
         let density = get_smoothing_factor(vec.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y });
-        let density_gradient = calculate_density_gradient(vec.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y }, density);
+        let density_gradient = calculate_density_gradient(vec.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y }, density, window.height() / 2.0, window.width() / 2.0);
 
         let pressure = convert_density_to_pressure(density);
 
@@ -100,27 +105,27 @@ fn get_smoothing_factor(particles: Vec<(Vec2, f32)>, sample_location: Vec2) -> f
 }
 
 fn smoothing_function(distance:f32, radius:f32) -> f32{
-    let volume = 3.141 * radius.powf(8.0) / 4.0;
-    let mut value = radius * radius - distance * distance;
 
-    if value < 0.0{
-        value = 0.0;
+    if distance >= radius{
+        return 0.0;
     }
 
-    return value * value * value / volume;//* DENSITY_WEIGHT;
+    let volume = 3.141 * radius.powf(4.0) / 6.0;
+
+    return (radius - distance) * (radius - distance) / volume;
 }
 
 fn smoothing_function_derivative(dst: f32, radius: f32) -> f32{
     if dst >= radius{
         return 0.0;
     }
-    let f = radius * radius - dst * dst;
-    let scale = -24.0 / (3.141 * radius.powf(8.0));
-    return scale * dst * f * f;
+    let scale = 12.0 / (3.141 * radius.powf(4.0));
+    return (dst - radius) * scale;
 }
 
-fn calculate_density_gradient(particles: Vec<(Vec2, f32)>, sample_location: Vec2, density: f32) -> Vec2{
+fn calculate_density_gradient(particles: Vec<(Vec2, f32)>, sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32) -> Vec2{
     let mut gradient = Vec2::ZERO;
+    let wall_effect_offset = 0.1;
 
     for (position, smoothing_radius) in &particles{
         let dst = (position - sample_location).length();
@@ -129,10 +134,22 @@ fn calculate_density_gradient(particles: Vec<(Vec2, f32)>, sample_location: Vec2
         }
         let dir = Vec2{ x: position.x - sample_location.x, y: position.y - sample_location.y } / dst;
         let slope = smoothing_function_derivative(dst, *smoothing_radius);
-        //let density = get_smoothing_factor(particles.clone(), *position);
         gradient += dir * slope * PARTICLE_MASS / density;
-        //println!("density: {}, slope: {}, gradient: {}, dst: {}, smoothing_rad: {}", density, slope, gradient, dst, smoothing_radius);
     }
+
+        if sample_location.y <= -wall_height + 5.0{
+            gradient.y += wall_effect_offset;
+        }
+        else if sample_location.y >= wall_height - 5.0{
+            gradient.y -= wall_effect_offset;
+        }
+        if sample_location.x <= -wall_width + 5.0{
+            gradient.x += wall_effect_offset;
+        }
+        else if sample_location.x >= wall_width - 5.0{
+            gradient.x -= wall_effect_offset;
+        }
+
     return gradient;
 }
 
