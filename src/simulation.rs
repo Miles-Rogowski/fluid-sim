@@ -27,7 +27,7 @@ struct Densities{
 
 
 fn precalculate_densities(
-    mut particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
+    particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
     mut densities: ResMut<Densities>,
 ){
 
@@ -44,7 +44,7 @@ fn precalculate_densities(
 fn calculate_velocities(
     mut particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
-    mut densities: ResMut<Densities>,
+    densities: ResMut<Densities>,
 ){
 
     let window = window.single().unwrap();
@@ -55,8 +55,10 @@ fn calculate_velocities(
     for (i, (transform, mut velocity)) in particles.iter_mut().enumerate(){
         velocity.y -= GRAVITY_STRENGTH;
 
+        let vec2_pos= Vec2{ x: transform.translation.x, y: transform.translation.y };
+
         let density = densities.density_array[i];
-        let density_gradient = calculate_density_gradient(densities.particle_array.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y }, density, window.height() / 2.0, window.width() / 2.0, densities.density_array);
+        let density_gradient = calculate_density_gradient(densities.particle_array.clone(), vec2_pos, density, height / 2.0, width / 2.0, densities.density_array);
 
         let pressure = convert_density_to_pressure(density);
 

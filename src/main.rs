@@ -1,12 +1,15 @@
 use bevy::prelude::*;
 use crate::simulation::SimulationPlugin;
+use crate::mouse_control::MouseControlPlugin;
 
 mod simulation;
+mod mouse_control;
 
 
 fn main() {
     App::new()
     .add_plugins(DefaultPlugins)
+    .add_plugins(MouseControlPlugin)
     .add_plugins(SimulationPlugin)
     .add_systems(Startup, setup)
     .run();
