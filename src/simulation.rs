@@ -7,18 +7,44 @@ pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin{
     fn build(&self, app: &mut App){
         app
-        .add_systems(Update, calculate_velocities)
+        .insert_resource(Densities{ density_array: [0.0; NUMBER_OF_PARTICLES as usize], particle_array: [Vec2{ x: 0.0, y: 0.0 }; NUMBER_OF_PARTICLES as usize] })
+        .add_systems(Update, precalculate_densities)
+        .add_systems(Update, calculate_velocities.after(precalculate_densities))
         .add_systems(Update, move_particles.after(calculate_velocities));
     }
 }
 
-const TARGET_DENSITY: f32 = 3.0;
+const TARGET_DENSITY: f32 = 2.75;
 const GRAVITY_STRENGTH: f32 = 0.098;
-const PRESSURE_MULTIPLIER: f32 = 3.0;
+const PRESSURE_MULTIPLIER: f32 = 1.95;
+const SMOOTHING_RADIUS: f32 = 50.0;
+
+#[derive(Resource)]
+struct Densities{
+    density_array: [f32; NUMBER_OF_PARTICLES as usize],
+    particle_array: [Vec2; NUMBER_OF_PARTICLES as usize]
+}
+
+
+fn precalculate_densities(
+    mut particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
+    mut densities: ResMut<Densities>,
+){
+
+    for (i, (transform, _))  in particles.iter().enumerate(){
+        densities.particle_array[i] = Vec2{ x: transform.translation.x, y: transform.translation.y };
+    }
+
+    for (i, (transform, _)) in particles.iter().enumerate(){
+        densities.density_array[i] = get_smoothing_factor(densities.particle_array.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y});
+    }
+}
+
 
 fn calculate_velocities(
-    mut particles: Query<(&mut Transform, &mut Velocity, &FluidParticle)>,
+    mut particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
+    mut densities: ResMut<Densities>,
 ){
 
     let window = window.single().unwrap();
@@ -26,19 +52,11 @@ fn calculate_velocities(
     let width = window.width();
     let height = window.height();
 
-    //position, smoothing radius
-    let mut vec: Vec<(Vec2, f32)> = vec![];
-    for (transform, _, fluid_particle) in particles.iter_mut(){
-        
-
-        vec.push((Vec2{ x: transform.translation.x, y: transform.translation.y }, fluid_particle.smoothing_radius));
-    }
-
-    particles.par_iter_mut().for_each(|(transform, mut velocity, _)|{
+    for (i, (transform, mut velocity)) in particles.iter_mut().enumerate(){
         velocity.y -= GRAVITY_STRENGTH;
 
-        let density = get_smoothing_factor(vec.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y });
-        let density_gradient = calculate_density_gradient(vec.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y }, density, window.height() / 2.0, window.width() / 2.0);
+        let density = densities.density_array[i];
+        let density_gradient = calculate_density_gradient(densities.particle_array.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y }, density, window.height() / 2.0, window.width() / 2.0, densities.density_array);
 
         let pressure = convert_density_to_pressure(density);
 
@@ -47,13 +65,14 @@ fn calculate_velocities(
             velocity.y += -pressure * density_gradient.y;
         }
         
-    });
+    };
 
 }
 
 fn move_particles(
-    mut particles: Query<(&mut Transform, &mut Velocity, &FluidParticle)>,
+    mut particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
     window: Query<&mut Window, With<PrimaryWindow>>,
+    time: Res<Time>,
 ){
     let window = window.single().unwrap();
 
@@ -63,9 +82,11 @@ fn move_particles(
     let h_cutoff = (height / 2.0) + (PARTICLE_SIZE / 2.0);
     let w_cutoff = (width / 2.0) + (PARTICLE_SIZE / 2.0);
 
-    for (mut transform, mut velocity, _) in particles.iter_mut(){
-        transform.translation.x += velocity.x;
-        transform.translation.y += velocity.y;
+    let dt = time.delta_secs();
+
+    for (mut transform, mut velocity) in particles.iter_mut(){
+        transform.translation.x += velocity.x * dt * 60.0;
+        transform.translation.y += velocity.y * dt * 60.0;
         
         if transform.translation.y <= -h_cutoff && velocity.y < 0.0{
             velocity.y = -velocity.y * 0.7;
@@ -88,16 +109,16 @@ fn move_particles(
 
 }
 
-fn get_smoothing_factor(particles: Vec<(Vec2, f32)>, sample_location: Vec2) -> f32{
+fn get_smoothing_factor(particles: [Vec2; NUMBER_OF_PARTICLES as usize], sample_location: Vec2) -> f32{
     let mut total_value: f32 = 0.0;
-    for (transform, smoothing_radius) in particles{
+    for transform in particles{
         //find distance
         let dist_x = (sample_location.x - transform.x).abs();
         let dist_y = (sample_location.y - transform.y).abs();
 
         let dist = (dist_x * dist_x + dist_y * dist_y).sqrt();
 
-        let sample_value: f32 = smoothing_function(dist, smoothing_radius);
+        let sample_value: f32 = smoothing_function(dist, SMOOTHING_RADIUS);
 
         total_value += sample_value * PARTICLE_MASS;
     }
@@ -123,18 +144,20 @@ fn smoothing_function_derivative(dst: f32, radius: f32) -> f32{
     return (dst - radius) * scale;
 }
 
-fn calculate_density_gradient(particles: Vec<(Vec2, f32)>, sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32) -> Vec2{
+fn calculate_density_gradient(particles: [Vec2; NUMBER_OF_PARTICLES as usize], sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32, densities: [f32; NUMBER_OF_PARTICLES as usize]) -> Vec2{
     let mut gradient = Vec2::ZERO;
     let wall_effect_offset = 0.1;
 
-    for (position, smoothing_radius) in &particles{
+    for (i, position) in particles.iter().enumerate(){
         let dst = (position - sample_location).length();
         if dst < 0.0001{
             continue;
         }
         let dir = Vec2{ x: position.x - sample_location.x, y: position.y - sample_location.y } / dst;
-        let slope = smoothing_function_derivative(dst, *smoothing_radius);
-        gradient += dir * slope * PARTICLE_MASS / density;
+        let slope = smoothing_function_derivative(dst, SMOOTHING_RADIUS);
+        let other_density = densities[i];
+        let shared_pressure = calculate_shared_pressure(other_density, density);
+        gradient += -shared_pressure * dir * slope * PARTICLE_MASS / density;
     }
 
         if sample_location.y <= -wall_height + 5.0{
@@ -157,4 +180,10 @@ fn convert_density_to_pressure(density: f32) -> f32{
     let density_dif = density - TARGET_DENSITY;
     let pressure = density_dif * PRESSURE_MULTIPLIER;
     return pressure;
+}
+
+fn calculate_shared_pressure(density_a: f32, density_b: f32) -> f32{
+    let pressure_a = convert_density_to_pressure(density_a);
+    let pressure_b = convert_density_to_pressure(density_b);
+    return (pressure_a + pressure_b) / 2.0;
 }
