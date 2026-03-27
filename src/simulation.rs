@@ -7,7 +7,7 @@ pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin{
     fn build(&self, app: &mut App){
         app
-        .insert_resource(Densities{ density_array: [0.0; NUMBER_OF_PARTICLES as usize], particle_array: [Vec2{ x: 0.0, y: 0.0 }; NUMBER_OF_PARTICLES as usize] })
+        .insert_resource(Densities{ density_array: [0.0; NUMBER_OF_PARTICLES as usize], particle_array: vec![] })
         .add_systems(Update, precalculate_densities)
         .add_systems(Update, calculate_velocities.after(precalculate_densities))
         .add_systems(Update, move_particles.after(calculate_velocities));
@@ -22,7 +22,7 @@ const SMOOTHING_RADIUS: f32 = 50.0;
 #[derive(Resource)]
 struct Densities{
     density_array: [f32; NUMBER_OF_PARTICLES as usize],
-    particle_array: [Vec2; NUMBER_OF_PARTICLES as usize]
+    particle_array: Vec<(Vec2, usize)>
 }
 
 
@@ -31,8 +31,10 @@ fn precalculate_densities(
     mut densities: ResMut<Densities>,
 ){
 
+    densities.particle_array = vec![];
+
     for (i, (transform, _))  in particles.iter().enumerate(){
-        densities.particle_array[i] = Vec2{ x: transform.translation.x, y: transform.translation.y };
+        densities.particle_array.push((Vec2{ x: transform.translation.x, y: transform.translation.y }, i));
     }
 
     for (i, (transform, _)) in particles.iter().enumerate(){
@@ -58,7 +60,10 @@ fn calculate_velocities(
         let vec2_pos= Vec2{ x: transform.translation.x, y: transform.translation.y };
 
         let density = densities.density_array[i];
-        let density_gradient = calculate_density_gradient(densities.particle_array.clone(), vec2_pos, density, height / 2.0, width / 2.0, densities.density_array);
+
+        let relevant_particles = get_releavant_particles(vec2_pos, densities.particle_array.clone());
+
+        let density_gradient = calculate_density_gradient(relevant_particles.clone(), vec2_pos, density, height / 2.0, width / 2.0, densities.density_array);
 
         let pressure = convert_density_to_pressure(density);
 
@@ -111,9 +116,9 @@ fn move_particles(
 
 }
 
-fn get_smoothing_factor(particles: [Vec2; NUMBER_OF_PARTICLES as usize], sample_location: Vec2) -> f32{
+fn get_smoothing_factor(particles: Vec<(Vec2, usize)>, sample_location: Vec2) -> f32{
     let mut total_value: f32 = 0.0;
-    for transform in particles{
+    for (transform, _) in particles{
         //find distance
         let dist_x = (sample_location.x - transform.x).abs();
         let dist_y = (sample_location.y - transform.y).abs();
@@ -146,18 +151,18 @@ fn smoothing_function_derivative(dst: f32, radius: f32) -> f32{
     return (dst - radius) * scale;
 }
 
-fn calculate_density_gradient(particles: [Vec2; NUMBER_OF_PARTICLES as usize], sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32, densities: [f32; NUMBER_OF_PARTICLES as usize]) -> Vec2{
+fn calculate_density_gradient(particles: Vec<(Vec2, usize)>, sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32, densities: [f32; NUMBER_OF_PARTICLES as usize]) -> Vec2{
     let mut gradient = Vec2::ZERO;
     let wall_effect_offset = 0.1;
 
-    for (i, position) in particles.iter().enumerate(){
+    for (position, i) in particles.iter(){
         let dst = (position - sample_location).length();
         if dst < 0.0001{
             continue;
         }
         let dir = Vec2{ x: position.x - sample_location.x, y: position.y - sample_location.y } / dst;
         let slope = smoothing_function_derivative(dst, SMOOTHING_RADIUS);
-        let other_density = densities[i];
+        let other_density = densities[*i];
         let shared_pressure = calculate_shared_pressure(other_density, density);
         gradient += -shared_pressure * dir * slope * PARTICLE_MASS / density;
     }
@@ -188,4 +193,16 @@ fn calculate_shared_pressure(density_a: f32, density_b: f32) -> f32{
     let pressure_a = convert_density_to_pressure(density_a);
     let pressure_b = convert_density_to_pressure(density_b);
     return (pressure_a + pressure_b) / 2.0;
+}
+
+fn get_releavant_particles(sample_location: Vec2, particles: Vec<(Vec2, usize)>) -> Vec<(Vec2, usize)>{
+    let mut relevant_particles = vec![];
+    for position in particles.iter(){
+        if (sample_location - position.0).length().abs() <= SMOOTHING_RADIUS{
+            relevant_particles.push(*position);
+        }
+    }
+
+    return relevant_particles;
+
 }
