@@ -14,10 +14,10 @@ impl Plugin for SimulationPlugin{
     }
 }
 
-const TARGET_DENSITY: f32 = 2.75;
-const GRAVITY_STRENGTH: f32 = 0.098;
-const PRESSURE_MULTIPLIER: f32 = 1.95;
-const SMOOTHING_RADIUS: f32 = 50.0;
+const TARGET_DENSITY: f32 = 2.75; //2.75
+const GRAVITY_STRENGTH: f32 = 0.098; // 0.098
+const PRESSURE_MULTIPLIER: f32 = 1.95; //1.95
+const SMOOTHING_RADIUS: f32 = 50.0; //50
 
 #[derive(Resource)]
 struct Densities{
@@ -91,7 +91,7 @@ fn move_particles(
 
     let dt = time.delta_secs();
 
-    for (mut transform, mut velocity) in particles.iter_mut(){
+    particles.par_iter_mut().for_each(|(mut transform, mut velocity)|{
         transform.translation.x += velocity.x * dt * 60.0;
         transform.translation.y += velocity.y * dt * 60.0;
         
@@ -112,7 +112,7 @@ fn move_particles(
             velocity.x = -velocity.x * 0.7;
             transform.translation.x = w_cutoff;
         }
-    }
+    });
 
 }
 
