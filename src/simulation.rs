@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use crate::{FluidParticle, Velocity, PARTICLE_SIZE, PARTICLE_MASS, NUMBER_OF_PARTICLES};
+use crate::mouse_control::Obstacle;
 
 pub struct SimulationPlugin;
 
@@ -77,7 +78,8 @@ fn calculate_velocities(
 }
 
 fn move_particles(
-    mut particles: Query<(&mut Transform, &mut Velocity), With<FluidParticle>>,
+    mut particles: Query<(&mut Transform, &mut Velocity), (With<FluidParticle>, Without<Obstacle>)>,
+    obstacles: Query<(&Obstacle, &Transform)>,
     window: Query<&mut Window, With<PrimaryWindow>>,
     time: Res<Time>,
 ){
@@ -112,6 +114,39 @@ fn move_particles(
             velocity.x = -velocity.x * 0.7;
             transform.translation.x = w_cutoff;
         }
+
+
+        for (obstacle, obstacle_transform) in obstacles.iter(){
+            if transform.translation.x > obstacle.top_left.x && transform.translation.x < obstacle.bottom_right.x && transform.translation.y > obstacle.top_left.y && transform.translation.y < obstacle.bottom_right.y{
+                let mut overlap = Vec2::ZERO;
+
+                overlap.x = f32::min(transform.translation.x - obstacle.top_left.x, obstacle.bottom_right.x - transform.translation.x);
+                overlap.y = f32::min(transform.translation.y - obstacle.top_left.y, obstacle.bottom_right.y - transform.translation.y);
+
+                if overlap.x < overlap.y{
+                    velocity.x = -velocity.x;
+
+                    if overlap.x == transform.translation.x - obstacle.top_left.x{
+                        transform.translation.x = obstacle.top_left.x;
+                    }
+                    else{
+                        transform.translation.x = obstacle.bottom_right.x;
+                    }
+                }
+                else{
+                    velocity.y = -velocity.y;
+
+                    if overlap.y == transform.translation.y - obstacle.top_left.y{
+                        transform.translation.y = obstacle.top_left.y;
+                    }
+                    else{
+                        transform.translation.y = obstacle.bottom_right.y;
+                    }
+                }
+
+            }
+        }
+
     });
 
 }
