@@ -18,22 +18,22 @@ impl Plugin for MarchingSquaresPlugin{
 const GRID_SIZE: f32 = 40.0;
 
 static LOOKUP_TABLE: LazyLock<[Vec<Vec2>; 16]> = LazyLock::new(|| [
-    vec![Vec2::ZERO, Vec2::ZERO],                                                                                // 0:  0000
-    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:1.0}],                                         // 1:  0001 BL
-    vec![Vec2{x:0.5,y:1.0}, Vec2{x:1.0,y:0.5}],                                         // 2:  0010 BR
-    vec![Vec2{x:0.0,y:0.5}, Vec2{x:1.0,y:0.5}],                                         // 3:  0011 BR+BL
-    vec![Vec2{x:1.0,y:0.5}, Vec2{x:0.5,y:0.0}],                                        // 4:  0100 TR
-    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:0.0}, Vec2{x:1.0,y:0.5}, Vec2{x:0.5,y:1.0}], // 5:  0101 TR+BL
-    vec![Vec2{x:0.5,y:0.0}, Vec2{x:0.5,y:1.0}],                                         // 6:  0110 TR+BR
-    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:0.0}],                                         // 7:  0111 TR+BR+BL
-    vec![Vec2{x:0.5,y:0.0}, Vec2{x:0.0,y:0.5}],                                         // 8:  1000 TL
-    vec![Vec2{x:0.5,y:0.0}, Vec2{x:0.5,y:1.0}],                                         // 9:  1001 TL+BL
-    vec![Vec2{x:0.5,y:0.0}, Vec2{x:1.0,y:0.5}, Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:1.0}], // 10: 1010 TL+BR
-    vec![Vec2{x:1.0,y:0.5}, Vec2{x:0.5,y:0.0}],                                         // 11: 1011 TL+BR+BL
-    vec![Vec2{x:0.0,y:0.5}, Vec2{x:1.0,y:0.5}],                                         // 12: 1100 TL+TR
-    vec![Vec2{x:0.5,y:1.0}, Vec2{x:1.0,y:0.5}],                                         // 13: 1101 TL+TR+BL
-    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:1.0}],                                         // 14: 1110 TL+TR+BR
-    vec![Vec2::ZERO, Vec2::ZERO],                                                                                // 15: 1111
+    vec![Vec2::ZERO, Vec2::ZERO],
+    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:1.0}],
+    vec![Vec2{x:0.5,y:1.0}, Vec2{x:1.0,y:0.5}],
+    vec![Vec2{x:0.0,y:0.5}, Vec2{x:1.0,y:0.5}],
+    vec![Vec2{x:1.0,y:0.5}, Vec2{x:0.5,y:0.0}],
+    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:0.0}, Vec2{x:1.0,y:0.5}, Vec2{x:0.5,y:1.0}],
+    vec![Vec2{x:0.5,y:0.0}, Vec2{x:0.5,y:1.0}],
+    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:0.0}],
+    vec![Vec2{x:0.5,y:0.0}, Vec2{x:0.0,y:0.5}],
+    vec![Vec2{x:0.5,y:0.0}, Vec2{x:0.5,y:1.0}],
+    vec![Vec2{x:0.5,y:0.0}, Vec2{x:1.0,y:0.5}, Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:1.0}],
+    vec![Vec2{x:1.0,y:0.5}, Vec2{x:0.5,y:0.0}],
+    vec![Vec2{x:0.0,y:0.5}, Vec2{x:1.0,y:0.5}],
+    vec![Vec2{x:0.5,y:1.0}, Vec2{x:1.0,y:0.5}],
+    vec![Vec2{x:0.0,y:0.5}, Vec2{x:0.5,y:1.0}],
+    vec![Vec2::ZERO, Vec2::ZERO],
 ]);
 
 #[derive(Component)]

@@ -118,7 +118,7 @@ fn move_particles(
         }
 
 
-        for (obstacle, obstacle_transform) in obstacles.iter(){
+        for (obstacle, _) in obstacles.iter(){
             if transform.translation.x > obstacle.top_left.x && transform.translation.x < obstacle.bottom_right.x && transform.translation.y > obstacle.top_left.y && transform.translation.y < obstacle.bottom_right.y{
                 let mut overlap = Vec2::ZERO;
 

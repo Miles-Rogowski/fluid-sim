@@ -20,7 +20,7 @@ fn main() {
 
 const NUMBER_OF_PARTICLES: u32 = 500;
 const ROW_SIZE: u32 = 25;
-const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
+//const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
 pub const PARTICLE_SIZE: f32 = 5.0; 
 pub const PARTICLE_MASS: f32 = 5.0;
 
@@ -40,8 +40,8 @@ pub struct Velocity{
 
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    //mut meshes: ResMut<Assets<Mesh>>,
+    //mut materials: ResMut<Assets<ColorMaterial>>,
 ){
     commands.spawn(Camera2d);
 

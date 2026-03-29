@@ -25,8 +25,6 @@ struct Active;
 pub struct Obstacle{
     pub top_left: Vec2,
     pub bottom_right: Vec2,
-    pub width: f32,
-    pub height: f32,
 }
 
 #[derive(Resource)]
@@ -130,7 +128,7 @@ fn create_obstacles(
                         MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(OBSTACLE_COLOR)))),
                         Transform::from_xyz(anchor_point.0.x - width / 2.0, anchor_point.0.y - height / 2.0, 10.0),
                         Active,
-                        Obstacle{ top_left: top_left, bottom_right: bottom_right, width, height},
+                        Obstacle{ top_left: top_left, bottom_right: bottom_right},
                     ));
             }
 
