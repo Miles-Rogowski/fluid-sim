@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use crate::simulation::SimulationPlugin;
 use crate::mouse_control::MouseControlPlugin;
+use crate::marching_squares::MarchingSquaresPlugin;
 
 mod simulation;
 mod mouse_control;
+mod marching_squares;
 
 
 fn main() {
@@ -11,6 +13,7 @@ fn main() {
     .add_plugins(DefaultPlugins)
     .add_plugins(MouseControlPlugin)
     .add_plugins(SimulationPlugin)
+    .add_plugins(MarchingSquaresPlugin)
     .add_systems(Startup, setup)
     .run();
 }
@@ -47,13 +50,14 @@ fn setup(
         let position = find_particle_position_in_grid(i);
 
         commands.spawn((
-            Mesh2d(meshes.add(Circle::new(PARTICLE_SIZE))),
-            MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(PARTICLE_COLOR)))),
+            //Mesh2d(meshes.add(Circle::new(PARTICLE_SIZE))),
+            //MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(PARTICLE_COLOR)))),
             Transform::from_xyz(position.x, position.y, position.z),
             FluidParticle,
             Velocity{ x: 0.0, y: 0.0 },
         ));
     }
+
 }
 
 fn find_particle_position_in_grid(particle_number: u32) -> Vec3{

@@ -20,6 +20,8 @@ const GRAVITY_STRENGTH: f32 = 0.098; // 0.098
 const PRESSURE_MULTIPLIER: f32 = 1.95; //1.95
 const SMOOTHING_RADIUS: f32 = 50.0; //50
 
+const BOUNCE_DAMPING: f32 = 0.7; //0.7
+
 #[derive(Resource)]
 struct Densities{
     density_array: [f32; NUMBER_OF_PARTICLES as usize],
@@ -98,20 +100,20 @@ fn move_particles(
         transform.translation.y += velocity.y * dt * 60.0;
         
         if transform.translation.y <= -h_cutoff && velocity.y < 0.0{
-            velocity.y = -velocity.y * 0.7;
+            velocity.y = -velocity.y * BOUNCE_DAMPING;
             transform.translation.y = -h_cutoff;
         }
         else if transform.translation.y >= h_cutoff && velocity.y > 0.0{
-            velocity.y = -velocity.y * 0.7;
+            velocity.y = -velocity.y * BOUNCE_DAMPING;
             transform.translation.y = h_cutoff;
         }
 
         if transform.translation.x <= -w_cutoff && velocity.x <= 0.0{
-            velocity.x = -velocity.x * 0.7;
+            velocity.x = -velocity.x * BOUNCE_DAMPING;
             transform.translation.x = -w_cutoff;
         }
         else if transform.translation.x >= w_cutoff && velocity.x >= 0.0{
-            velocity.x = -velocity.x * 0.7;
+            velocity.x = -velocity.x * BOUNCE_DAMPING;
             transform.translation.x = w_cutoff;
         }
 
@@ -124,7 +126,7 @@ fn move_particles(
                 overlap.y = f32::min(transform.translation.y - obstacle.top_left.y, obstacle.bottom_right.y - transform.translation.y);
 
                 if overlap.x < overlap.y{
-                    velocity.x = -velocity.x;
+                    velocity.x = -velocity.x * BOUNCE_DAMPING;
 
                     if overlap.x == transform.translation.x - obstacle.top_left.x{
                         transform.translation.x = obstacle.top_left.x;
@@ -134,7 +136,7 @@ fn move_particles(
                     }
                 }
                 else{
-                    velocity.y = -velocity.y;
+                    velocity.y = -velocity.y * BOUNCE_DAMPING;
 
                     if overlap.y == transform.translation.y - obstacle.top_left.y{
                         transform.translation.y = obstacle.top_left.y;
