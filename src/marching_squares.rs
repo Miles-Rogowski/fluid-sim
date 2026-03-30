@@ -23,6 +23,18 @@ enum Edge{
     Right
 }
 
+enum Corner{
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight
+}
+
+enum TriPoint{
+    Edge(Edge),
+    Corner(Corner)
+}
+
 
 const GRID_SIZE: f32 = 40.0; //40.0
 const THREASHOLD: f32 = 1.0;
@@ -46,6 +58,42 @@ static LOOKUP_TABLE: LazyLock<[Vec<Edge>; 16]> = LazyLock::new(|| [
     vec![],
 ]);
 
+//this lookup table was made by Claude, I cant be bothered to manually write all these out :
+static TRIANGLE_LOOKUP_TABLE: LazyLock<[Vec<TriPoint>; 16]> = LazyLock::new(|| [
+    // 0: no corners inside
+    vec![],
+    // 1: bottom-left inside
+    vec![TriPoint::Edge(Edge::Left), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::BottomLeft)],
+    // 2: bottom-right inside
+    vec![TriPoint::Edge(Edge::Bottom), TriPoint::Edge(Edge::Right), TriPoint::Corner(Corner::BottomRight)],
+    // 3: bottom-left + bottom-right inside
+    vec![TriPoint::Edge(Edge::Left), TriPoint::Edge(Edge::Right), TriPoint::Corner(Corner::BottomRight), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::BottomRight), TriPoint::Corner(Corner::BottomLeft)],
+    // 4: top-right inside
+    vec![TriPoint::Edge(Edge::Right), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::TopRight)],
+    // 5: bottom-left + top-right inside (ambiguous)
+    vec![TriPoint::Edge(Edge::Left), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::BottomLeft), TriPoint::Edge(Edge::Right), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::TopRight)],
+    // 6: bottom-right + top-right inside
+    vec![TriPoint::Edge(Edge::Bottom), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::TopRight), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::TopRight), TriPoint::Corner(Corner::BottomRight)],
+    // 7: bottom-left + bottom-right + top-right inside
+    vec![TriPoint::Edge(Edge::Left), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::TopRight), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::TopRight), TriPoint::Corner(Corner::BottomRight), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::BottomRight), TriPoint::Corner(Corner::BottomLeft)],
+    // 8: top-left inside
+    vec![TriPoint::Edge(Edge::Top), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::TopLeft)],
+    // 9: bottom-left + top-left inside
+    vec![TriPoint::Edge(Edge::Top), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::BottomLeft), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::BottomLeft), TriPoint::Corner(Corner::TopLeft)],
+    // 10: bottom-right + top-left inside (ambiguous)
+    vec![TriPoint::Edge(Edge::Bottom), TriPoint::Edge(Edge::Right), TriPoint::Corner(Corner::BottomRight), TriPoint::Edge(Edge::Top), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::TopLeft)],
+    // 11: bottom-left + bottom-right + top-left inside
+    vec![TriPoint::Edge(Edge::Top), TriPoint::Edge(Edge::Right), TriPoint::Corner(Corner::BottomRight), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::BottomRight), TriPoint::Corner(Corner::BottomLeft), TriPoint::Edge(Edge::Top), TriPoint::Corner(Corner::BottomLeft), TriPoint::Corner(Corner::TopLeft)],
+    // 12: top-left + top-right inside
+    vec![TriPoint::Edge(Edge::Left), TriPoint::Edge(Edge::Right), TriPoint::Corner(Corner::TopRight), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::TopRight), TriPoint::Corner(Corner::TopLeft)],
+    // 13: bottom-left + top-left + top-right inside
+    vec![TriPoint::Edge(Edge::Bottom), TriPoint::Edge(Edge::Right), TriPoint::Corner(Corner::TopRight), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::TopRight), TriPoint::Corner(Corner::TopLeft), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::TopLeft), TriPoint::Corner(Corner::BottomLeft)],
+    // 14: bottom-right + top-left + top-right inside
+    vec![TriPoint::Edge(Edge::Left), TriPoint::Edge(Edge::Bottom), TriPoint::Corner(Corner::BottomRight), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::BottomRight), TriPoint::Corner(Corner::TopRight), TriPoint::Edge(Edge::Left), TriPoint::Corner(Corner::TopRight), TriPoint::Corner(Corner::TopLeft)],
+    // 15: all corners inside
+    vec![TriPoint::Corner(Corner::TopLeft), TriPoint::Corner(Corner::TopRight), TriPoint::Corner(Corner::BottomRight), TriPoint::Corner(Corner::TopLeft), TriPoint::Corner(Corner::BottomRight), TriPoint::Corner(Corner::BottomLeft)],
+]);
+
 const EDGE_POINTS: LazyLock<HashMap<Edge, (Vec2, Vec2)>> = LazyLock::new(|| HashMap::from([
     (Edge::Top, (Vec2{ x: 0.0, y: 0.0 }, Vec2{ x: 1.0, y: 0.0 })),
     (Edge::Right, (Vec2{ x: 1.0, y: 0.0}, Vec2{ x: 1.0, y: 1.0 })),
@@ -55,9 +103,6 @@ const EDGE_POINTS: LazyLock<HashMap<Edge, (Vec2, Vec2)>> = LazyLock::new(|| Hash
 
 #[derive(Component)]
 struct MarchingSquareMesh;
-
-#[derive(Component)]
-struct GridVisualizer;
 
 
 fn marching_squares(
@@ -116,62 +161,88 @@ fn marching_squares(
             let lookup_index = (top_left as usize) * 8 + (top_right as usize) * 4 + (bottom_right as usize) * 2 + (bottom_left as usize);
 
 
-            let edges = &LOOKUP_TABLE[lookup_index];
+            let edges = &TRIANGLE_LOOKUP_TABLE[lookup_index];
 
-            for segment in edges.chunks(2){
-                let edge1 = &segment[0];
-                let edge2 = &segment[1];
+            for segment in edges.chunks(3){
+                let point1 = &segment[0];
+                let point2 = &segment[1];
+                let point3 = &segment[2];
 
-                let (val1_a, val1_b) = match edge1{
-                    Edge::Top => {
-                        (grid[index], grid[index + 1])
+                let v1 = match point1{
+                    TriPoint::Edge(Edge::Top) => {
+                        edge_to_point(&Edge::Top, grid[index], grid[index + 1])
                     },
-                    Edge::Left => {
-                        (grid[index], grid[index + ((width / GRID_SIZE).ceil() as usize + 1)])
+                    TriPoint::Edge(Edge::Left) => {
+                        edge_to_point(&Edge::Left, grid[index], grid[index + ((width / GRID_SIZE).ceil() as usize + 1)])
                     },
-                    Edge::Bottom => {
-                        (grid[index + ((width / GRID_SIZE).ceil() as usize + 1)], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    TriPoint::Edge(Edge::Bottom) => {
+                        edge_to_point(&Edge::Bottom, grid[index + ((width / GRID_SIZE).ceil() as usize + 1)], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
                         
                     },
-                    Edge::Right => {
-                        (grid[index + 1], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    TriPoint::Edge(Edge::Right) => {
+                        edge_to_point(&Edge::Right, grid[index + 1], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    },
+                    TriPoint::Corner(_) => {
+                        corner_to_point(point1)
                     }
                 };
 
-                let (val2_a, val2_b) = match edge2{
-                    Edge::Top => {
-                        (grid[index], grid[index + 1])
+                let v2 = match point2{
+                    TriPoint::Edge(Edge::Top) => {
+                        edge_to_point(&Edge::Top, grid[index], grid[index + 1])
                     },
-                    Edge::Left => {
-                        (grid[index], grid[index + ((width / GRID_SIZE).ceil() as usize + 1)])
+                    TriPoint::Edge(Edge::Left) => {
+                        edge_to_point(&Edge::Left, grid[index], grid[index + ((width / GRID_SIZE).ceil() as usize + 1)])
                     },
-                    Edge::Bottom => {
-                        (grid[index + ((width / GRID_SIZE).ceil() as usize + 1)], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    TriPoint::Edge(Edge::Bottom) => {
+                        edge_to_point(&Edge::Bottom, grid[index + ((width / GRID_SIZE).ceil() as usize + 1)], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
                         
                     },
-                    Edge::Right => {
-                        (grid[index + 1], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    TriPoint::Edge(Edge::Right) => {
+                        edge_to_point(&Edge::Right, grid[index + 1], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    },
+                    TriPoint::Corner(_) => {
+                        corner_to_point(point2)
                     }
                 };
 
-                let v1 = edge_to_point(edge1, val1_a, val1_b);
-                let v2 = edge_to_point(edge2, val2_a, val2_b);
+                let v3 = match point3{
+                    TriPoint::Edge(Edge::Top) => {
+                        edge_to_point(&Edge::Top, grid[index], grid[index + 1])
+                    },
+                    TriPoint::Edge(Edge::Left) => {
+                        edge_to_point(&Edge::Left, grid[index], grid[index + ((width / GRID_SIZE).ceil() as usize + 1)])
+                    },
+                    TriPoint::Edge(Edge::Bottom) => {
+                        edge_to_point(&Edge::Bottom, grid[index + ((width / GRID_SIZE).ceil() as usize + 1)], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                        
+                    },
+                    TriPoint::Edge(Edge::Right) => {
+                        edge_to_point(&Edge::Right, grid[index + 1], grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1])
+                    },
+                    TriPoint::Corner(_) => {
+                        corner_to_point(point3)
+                    }
+                };
 
+                //let v1 = edge_to_point(point1, val1_a, val1_b);
+                //let v2 = edge_to_point(point2, val2_a, val2_b);
 
                 vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v1.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v1.y * GRID_SIZE - height / 2.0) });
                 vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v2.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v2.y * GRID_SIZE - height / 2.0) });
+                vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v3.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v3.y * GRID_SIZE - height / 2.0) });
             }
                 
         }
     }
 
-    let mut mesh = Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default());
+    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
     let positions: Vec<[f32; 3]> = vertices.iter().map(|v| [v.x, v.y, 0.0]).collect();
     mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
 
     commands.spawn((
         Mesh2d(meshes.add(mesh)),
-        MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(LinearRgba::rgb(1.0, 0.0, 0.0))))),
+        MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(LinearRgba::rgb(0.0, 0.25, 1.0))))),
         Transform::from_xyz(0.0, 0.0, 0.0),
         MarchingSquareMesh,
     ));
@@ -184,12 +255,37 @@ fn marching_squares(
 }
 
 fn edge_to_point(edge: &Edge, value_a: u32, value_b: u32) -> Vec2{
-    let mut t = 0.5;
-    if value_a != value_b{
-        t = (THREASHOLD - value_a as f32) / (value_b as f32 - value_a as f32);
+    let t = if value_a != value_b{
+        (THREASHOLD - value_a as f32) / (value_b as f32 - value_a as f32)
     }
+    else{
+        0.5
+    };
+
     let x = EDGE_POINTS[edge].0.x + t * (EDGE_POINTS[edge].1.x - EDGE_POINTS[edge].0.x);
     let y = EDGE_POINTS[edge].0.y + t * (EDGE_POINTS[edge].1.y - EDGE_POINTS[edge].0.y);
 
-    return Vec2{ x: x, y: y };
+        return Vec2{ x: x, y: y };
+}
+
+fn corner_to_point(corner: &TriPoint) -> Vec2{
+    let vector = match corner{
+        &TriPoint::Corner(Corner::TopLeft) => {
+            Vec2{ x: 0.0, y: 0.0 }
+        },
+        &TriPoint::Corner(Corner::TopRight) => {
+            Vec2{ x: 1.0, y: 0.0 }
+        },
+        &TriPoint::Corner(Corner::BottomLeft) => {
+            Vec2{ x: 0.0, y: 1.0 }
+        },
+        &TriPoint::Corner(Corner::BottomRight) => {
+            Vec2{ x: 1.0, y: 1.0 }
+        },
+        &TriPoint::Edge(_) => {
+            Vec2::ZERO
+        }
+    };
+
+    return vector;
 }
