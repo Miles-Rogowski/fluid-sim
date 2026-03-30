@@ -15,10 +15,10 @@ impl Plugin for SimulationPlugin{
     }
 }
 
-const TARGET_DENSITY: f32 = 2.75; //2.75
+const TARGET_DENSITY: f32 = 8.3; //2.75
 const GRAVITY_STRENGTH: f32 = 0.098; // 0.098
-const PRESSURE_MULTIPLIER: f32 = 1.95; //1.95
-const SMOOTHING_RADIUS: f32 = 50.0; //50
+const PRESSURE_MULTIPLIER: f32 = 0.65; //1.95
+const SMOOTHING_RADIUS: f32 = 16.5; //50
 
 const BOUNCE_DAMPING: f32 = 0.7; //0.7
 

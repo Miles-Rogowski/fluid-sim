@@ -18,9 +18,9 @@ fn main() {
     .run();
 }
 
-const NUMBER_OF_PARTICLES: u32 = 500;
+const NUMBER_OF_PARTICLES: u32 = 1500;
 const ROW_SIZE: u32 = 25;
-//const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
+//const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(1.0, 0.0, 0.0);
 pub const PARTICLE_SIZE: f32 = 5.0; 
 pub const PARTICLE_MASS: f32 = 5.0;
 
@@ -64,6 +64,6 @@ fn find_particle_position_in_grid(particle_number: u32) -> Vec3{
     let mut transform = Vec3::ZERO;
     transform.x = ((particle_number % ROW_SIZE) as f32 * PARTICLE_SIZE * 2.0) - (ROW_SIZE as f32 * PARTICLE_SIZE);
     transform.y = ((particle_number / ROW_SIZE) as f32 * PARTICLE_SIZE * 2.0) - (NUMBER_OF_PARTICLES / ROW_SIZE) as f32 * PARTICLE_SIZE;
-    transform.z = 1.0;
+    transform.z = 50.0;
     return transform;
 }

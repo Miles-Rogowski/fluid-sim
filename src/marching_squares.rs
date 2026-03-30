@@ -36,27 +36,9 @@ enum TriPoint{
 }
 
 
-const GRID_SIZE: f32 = 40.0; //40.0
-const THREASHOLD: f32 = 1.0;
 
-static LOOKUP_TABLE: LazyLock<[Vec<Edge>; 16]> = LazyLock::new(|| [
-    vec![],
-    vec![Edge::Left, Edge::Bottom],
-    vec![Edge::Bottom, Edge::Right],
-    vec![Edge::Left, Edge::Right],
-    vec![Edge::Right, Edge::Top],
-    vec![Edge::Left, Edge::Top, Edge::Right, Edge::Bottom],
-    vec![Edge::Top, Edge::Bottom],
-    vec![Edge::Left, Edge::Top],
-    vec![Edge::Top, Edge::Left],
-    vec![Edge::Top, Edge::Bottom],
-    vec![Edge::Top, Edge::Right, Edge::Left, Edge::Bottom],
-    vec![Edge::Right, Edge::Top],
-    vec![Edge::Left, Edge::Right],
-    vec![Edge::Bottom, Edge::Right],
-    vec![Edge::Left, Edge::Bottom],
-    vec![],
-]);
+const GRID_SIZE: f32 = 15.0; //15.0
+const THREASHOLD: f32 = 1.0;
 
 //this lookup table was made by Claude, I cant be bothered to manually write all these out :
 static TRIANGLE_LOOKUP_TABLE: LazyLock<[Vec<TriPoint>; 16]> = LazyLock::new(|| [
