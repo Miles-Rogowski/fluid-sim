@@ -40,6 +40,10 @@ enum TriPoint{
 const GRID_SIZE: f32 = 15.0; //15.0
 const THREASHOLD: f32 = 1.0;
 
+const DARK_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.125, 0.5);
+const MEDIUM_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
+const LIGHT_COLOR: LinearRgba = LinearRgba::rgb(0.75, 0.85, 1.0);
+
 //this lookup table was made by Claude, I cant be bothered to manually write all these out :
 static TRIANGLE_LOOKUP_TABLE: LazyLock<[Vec<TriPoint>; 16]> = LazyLock::new(|| [
     // 0: no corners inside
@@ -103,7 +107,9 @@ fn marching_squares(
 
     let mut grid: Vec<u32> = vec![0; ((width / GRID_SIZE).ceil() as usize + 1) * ((height / GRID_SIZE).ceil() as usize + 1)];
 
-    let mut vertices: Vec<Vec2> = vec![];
+    let mut dark_vertices: Vec<Vec2> = vec![];
+    let mut medium_vertices: Vec<Vec2> = vec![];
+    let mut light_vertices: Vec<Vec2> = vec![];
 
     for transform in particles.iter(){
         let x = transform.translation.x;
@@ -210,21 +216,58 @@ fn marching_squares(
                 //let v1 = edge_to_point(point1, val1_a, val1_b);
                 //let v2 = edge_to_point(point2, val2_a, val2_b);
 
-                vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v1.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v1.y * GRID_SIZE - height / 2.0) });
-                vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v2.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v2.y * GRID_SIZE - height / 2.0) });
-                vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v3.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v3.y * GRID_SIZE - height / 2.0) });
+                let total_value = grid[index] + grid[index + 1] + grid[index + ((width / GRID_SIZE).ceil() as usize + 1)] + grid[index + ((width / GRID_SIZE).ceil() as usize + 1) + 1];
+
+                if total_value >= (THREASHOLD * 16.0) as u32{
+                    dark_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v1.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v1.y * GRID_SIZE - height / 2.0) });
+                    dark_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v2.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v2.y * GRID_SIZE - height / 2.0) });
+                    dark_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v3.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v3.y * GRID_SIZE - height / 2.0) });
+                }
+                else if total_value >= (THREASHOLD * 8.0) as u32{
+                    medium_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v1.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v1.y * GRID_SIZE - height / 2.0) });
+                    medium_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v2.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v2.y * GRID_SIZE - height / 2.0) });
+                    medium_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v3.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v3.y * GRID_SIZE - height / 2.0) });
+                }
+                else{
+                    light_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v1.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v1.y * GRID_SIZE - height / 2.0) });
+                    light_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v2.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v2.y * GRID_SIZE - height / 2.0) });
+                    light_vertices.push(Vec2{ x: x as f32 * GRID_SIZE + v3.x * GRID_SIZE - width / 2.0, y: -(y as f32 * GRID_SIZE + v3.y * GRID_SIZE - height / 2.0) });
+                }
             }
                 
         }
     }
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
-    let positions: Vec<[f32; 3]> = vertices.iter().map(|v| [v.x, v.y, 0.0]).collect();
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    let mut dark_mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let dark_positions: Vec<[f32; 3]> = dark_vertices.iter().map(|v| [v.x, v.y, 0.0]).collect();
+    dark_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, dark_positions);  
+    
+    let mut medium_mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let medium_positions: Vec<[f32; 3]> = medium_vertices.iter().map(|v| [v.x, v.y, 0.0]).collect();
+    medium_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, medium_positions);
+
+    let mut light_mesh = Mesh::new(PrimitiveTopology::TriangleList, RenderAssetUsages::default());
+    let light_positions: Vec<[f32; 3]> = light_vertices.iter().map(|v| [v.x, v.y, 0.0]).collect();
+    light_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, light_positions);
+
 
     commands.spawn((
-        Mesh2d(meshes.add(mesh)),
-        MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(LinearRgba::rgb(0.0, 0.25, 1.0))))),
+        Mesh2d(meshes.add(dark_mesh)),
+        MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(DARK_COLOR)))),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        MarchingSquareMesh,
+    ));
+
+    commands.spawn((
+        Mesh2d(meshes.add(medium_mesh)),
+        MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(MEDIUM_COLOR)))),
+        Transform::from_xyz(0.0, 0.0, 0.0),
+        MarchingSquareMesh,
+    ));
+
+    commands.spawn((
+        Mesh2d(meshes.add(light_mesh)),
+        MeshMaterial2d(materials.add(ColorMaterial::from(Color::from(LIGHT_COLOR)))),
         Transform::from_xyz(0.0, 0.0, 0.0),
         MarchingSquareMesh,
     ));
