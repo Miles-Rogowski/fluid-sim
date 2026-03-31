@@ -42,7 +42,7 @@ const THREASHOLD: f32 = 1.0;
 
 const DARK_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.125, 0.5);
 const MEDIUM_COLOR: LinearRgba = LinearRgba::rgb(0.0, 0.25, 1.0);
-const LIGHT_COLOR: LinearRgba = LinearRgba::rgb(0.75, 0.85, 1.0);
+const LIGHT_COLOR: LinearRgba = LinearRgba::rgb(1.0, 1.0, 1.0);
 
 //this lookup table was made by Claude, I cant be bothered to manually write all these out :
 static TRIANGLE_LOOKUP_TABLE: LazyLock<[Vec<TriPoint>; 16]> = LazyLock::new(|| [
@@ -129,10 +129,10 @@ fn marching_squares(
         if index1 < grid.len(){
             grid[index1] += 1;
         }
-        if index2 < grid.len(){
+        if index2 < grid.len() && grid_x != ((width / GRID_SIZE).ceil() as usize){
             grid[index2] += 1;
         }
-        if index3 < grid.len(){
+        if index3 < grid.len() && grid_x != ((width / GRID_SIZE).ceil() as usize){
             grid[index3] += 1;
         }
     }
