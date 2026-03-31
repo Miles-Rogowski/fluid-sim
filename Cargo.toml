@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "*", features = ["dynamic_linking", "experimental_bevy_ui_widgets"] }
+bevy = { version = "*", features = ["dynamic_linking"] }
 rand = "0.10.0"
 
 [profile.dev]
