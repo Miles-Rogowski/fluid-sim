@@ -8,23 +8,25 @@ pub struct SimulationPlugin;
 impl Plugin for SimulationPlugin{
     fn build(&self, app: &mut App){
         app
-        .insert_resource(Densities{ density_array: [0.0; NUMBER_OF_PARTICLES as usize], particle_array: vec![] })
+        .insert_resource(Densities{ density_array: [0.0; NUMBER_OF_PARTICLES as usize].to_vec(), particle_array: vec![] })
         .add_systems(Update, precalculate_densities)
         .add_systems(Update, calculate_velocities.after(precalculate_densities))
         .add_systems(Update, move_particles.after(calculate_velocities));
     }
 }
 
-const TARGET_DENSITY: f32 = 8.3; //2.75
-const GRAVITY_STRENGTH: f32 = 0.098; // 0.098
-const PRESSURE_MULTIPLIER: f32 = 0.65; //1.95
-const SMOOTHING_RADIUS: f32 = 16.5; //50
+const TARGET_DENSITY: f32 = 4.6; //2.75
+const GRAVITY_STRENGTH: f32 = 0.18; // 0.098
+const PRESSURE_MULTIPLIER: f32 = 0.45; //1.95
+const SMOOTHING_RADIUS: f32 = 8.5; //50
 
 const BOUNCE_DAMPING: f32 = 0.7; //0.7
 
+const MAX_SPEED: f32 = 8.0;
+
 #[derive(Resource)]
 struct Densities{
-    density_array: [f32; NUMBER_OF_PARTICLES as usize],
+    density_array: Vec<f32>,
     particle_array: Vec<(Vec2, usize)>
 }
 
@@ -40,8 +42,11 @@ fn precalculate_densities(
         densities.particle_array.push((Vec2{ x: transform.translation.x, y: transform.translation.y }, i));
     }
 
+    densities.density_array = vec![];
+
     for (i, (transform, _)) in particles.iter().enumerate(){
-        densities.density_array[i] = get_smoothing_factor(densities.particle_array.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y});
+        let val = get_smoothing_factor(densities.particle_array.clone(), Vec2{ x: transform.translation.x, y: transform.translation.y});
+        densities.density_array.push(val);
     }
 }
 
@@ -66,13 +71,27 @@ fn calculate_velocities(
 
         let relevant_particles = get_releavant_particles(vec2_pos, densities.particle_array.clone());
 
-        let density_gradient = calculate_density_gradient(relevant_particles.clone(), vec2_pos, density, height / 2.0, width / 2.0, densities.density_array);
+        let density_gradient = calculate_density_gradient(relevant_particles.clone(), vec2_pos, density, height / 2.0, width / 2.0, densities.density_array.clone());
 
         let pressure = convert_density_to_pressure(density);
 
         if density > 0.0{
             velocity.x += -pressure * density_gradient.x;
             velocity.y += -pressure * density_gradient.y;
+        }
+
+        if velocity.y > MAX_SPEED{
+            velocity.y = MAX_SPEED;
+        }
+        if velocity.x > MAX_SPEED{
+            velocity.x = MAX_SPEED;
+        }
+
+        if velocity.y < -MAX_SPEED{
+            velocity.y = -MAX_SPEED;
+        }
+        if velocity.x < -MAX_SPEED{
+            velocity.x = -MAX_SPEED;
         }
         
     };
@@ -188,7 +207,7 @@ fn smoothing_function_derivative(dst: f32, radius: f32) -> f32{
     return (dst - radius) * scale;
 }
 
-fn calculate_density_gradient(particles: Vec<(Vec2, usize)>, sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32, densities: [f32; NUMBER_OF_PARTICLES as usize]) -> Vec2{
+fn calculate_density_gradient(particles: Vec<(Vec2, usize)>, sample_location: Vec2, density: f32, wall_height: f32, wall_width: f32, densities: Vec<f32>) -> Vec2{
     let mut gradient = Vec2::ZERO;
     let wall_effect_offset = 0.1;
 

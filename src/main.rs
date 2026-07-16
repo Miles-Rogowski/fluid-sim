@@ -18,11 +18,11 @@ fn main() {
     .run();
 }
 
-const NUMBER_OF_PARTICLES: u32 = 1500;
+const NUMBER_OF_PARTICLES: u32 = 3000;
 const ROW_SIZE: u32 = 25;
 //const PARTICLE_COLOR: LinearRgba = LinearRgba::rgb(1.0, 0.0, 0.0);
-pub const PARTICLE_SIZE: f32 = 5.0; 
-pub const PARTICLE_MASS: f32 = 5.0;
+pub const PARTICLE_SIZE: f32 = 2.5; 
+pub const PARTICLE_MASS: f32 = 2.5;
 
 
 

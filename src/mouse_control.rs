@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use rand::*;
 use crate::{FluidParticle, Velocity};
 
 pub struct MouseControlPlugin;
@@ -9,12 +10,16 @@ impl Plugin for MouseControlPlugin{
         app
         .insert_resource(AnchorPoint(Vec2{ x: 0.0, y: 0.0 }))
         .add_systems(Update, mouse_displacement)
-        .add_systems(Update, create_obstacles);
+        .add_systems(Update, create_obstacles)
+        .add_systems(Update, create_fluid);
     }
 }
 
 const MOUSE_EFFECT_RADIUS: f32 = 200.0;
-const MOUSE_EFFECT_STRENGTH: f32 = 20.0;
+const MOUSE_PULL_STRENGTH: f32 = 7.5;
+const MOUSE_PUSH_STRENGTH: f32 = 15.0;
+const DELETE_RAD: f32 = 50.0;
+const FLUID_CREATION_RATE: usize = 25;
 
 const OBSTACLE_COLOR: LinearRgba = LinearRgba::rgb(0.3, 0.3, 0.3);
 
@@ -72,10 +77,10 @@ fn mouse_displacement(
                 let center_t = 1.0 - (dst / MOUSE_EFFECT_RADIUS);
 
                 if mouse_input_strength > 0.0{
-                    interaction_force += ((dir_to_inp_point * MOUSE_EFFECT_STRENGTH - Vec2{ x: velocity.x, y: velocity.y }) * center_t) * mouse_input_strength;
+                    interaction_force += ((dir_to_inp_point * MOUSE_PULL_STRENGTH - Vec2{ x: velocity.x, y: velocity.y }) * center_t) * mouse_input_strength;
                 }
                 else{
-                    interaction_force += ((dir_to_inp_point * MOUSE_EFFECT_STRENGTH + Vec2{ x: velocity.x, y: velocity.y }) * center_t) * mouse_input_strength;
+                    interaction_force += ((dir_to_inp_point * MOUSE_PUSH_STRENGTH + Vec2{ x: velocity.x, y: velocity.y }) * center_t) * mouse_input_strength;
                 }
                 
             }
@@ -146,5 +151,44 @@ fn create_obstacles(
                 commands.entity(active_obstacle.0).remove::<Active>();
             }
         }
+    }
+}
+
+fn create_fluid(
+    mut commands: Commands,
+    mut particles: Query<(Entity, &Transform, &mut Velocity), With<FluidParticle>>,
+    window: Query<&mut Window, With<PrimaryWindow>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    camera: Query<(&Camera, &GlobalTransform)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+){
+    let window = window.single().unwrap();
+    let Ok((camera, camera_transform)) = camera.single() else { panic!("no camera!") };
+
+    if let Some(mouse_position) = window.cursor_position(){
+        let world_mouse_position = camera.viewport_to_world_2d(camera_transform, mouse_position).unwrap();
+
+        let mut rng = rand::rng();
+
+        if mouse_input.pressed(MouseButton::Middle) && !keyboard_input.pressed(KeyCode::ControlLeft){
+            for i in 0..FLUID_CREATION_RATE{
+                let x = rng.random_range(-3.0..3.0);
+                let y = rng.random_range(-1.0..5.0);
+                commands.spawn((
+                    Transform::from_xyz(world_mouse_position.x + x, world_mouse_position.y + y, 50.0),
+                    FluidParticle,
+                    Velocity{ x: x, y: y },
+                ));
+            }
+        }
+        else if mouse_input.pressed(MouseButton::Middle) && keyboard_input.pressed(KeyCode::ControlLeft){
+            for (entity, transform, _) in particles.iter_mut(){
+                if (Vec2{x: transform.translation.x, y: transform.translation.y} - world_mouse_position).length() < DELETE_RAD{
+                    commands.entity(entity).despawn();
+                }
+            }
+        }
+
+        
     }
 }
